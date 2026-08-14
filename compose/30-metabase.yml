@@ -1,0 +1,149 @@
+###############################################################################
+#
+# Monitoring-Grafana Project
+#
+# File:
+#   compose/30-metabase.yml
+#
+# Description:
+#   Metabase analytics platform.
+#
+###############################################################################
+
+services:
+
+###############################################################################
+# PostgreSQL
+###############################################################################
+
+  postgres-metabase:
+
+    image: postgres:${POSTGRES_VERSION}
+
+    container_name: postgres-metabase
+
+    restart: unless-stopped
+
+    security_opt:
+
+      - no-new-privileges:true
+
+    environment:
+
+      POSTGRES_DB: ${METABASE_DB_NAME}
+
+      POSTGRES_USER: ${METABASE_DB_USER}
+
+      POSTGRES_PASSWORD: ${METABASE_DB_PASSWORD}
+
+      TZ: ${TZ}
+
+    volumes:
+
+      - ${DATA_DIR}/metabase/postgres/data:/var/lib/postgresql/data
+
+    healthcheck:
+
+      test:
+
+        - CMD-SHELL
+        - pg_isready -U ${METABASE_DB_USER} -d ${METABASE_DB_NAME}
+
+      interval: 10s
+
+      timeout: 5s
+
+      retries: 10
+
+    networks:
+
+      bridge-moje:
+        ipv4_address: ${IP_POSTGRES_METABASE}
+
+###############################################################################
+# Metabase
+###############################################################################
+
+  metabase:
+
+    image: metabase/metabase:${METABASE_VERSION}
+
+    container_name: metabase
+
+    restart: unless-stopped
+
+    depends_on:
+
+      postgres-metabase:
+
+        condition: service_healthy
+
+    security_opt:
+
+      - no-new-privileges:true
+
+    environment:
+
+      MB_DB_TYPE: postgres
+
+      MB_DB_DBNAME: ${METABASE_DB_NAME}
+
+      MB_DB_HOST: postgres-metabase
+
+      MB_DB_PORT: 5432
+
+      MB_DB_USER: ${METABASE_DB_USER}
+
+      MB_DB_PASS: ${METABASE_DB_PASSWORD}
+
+      MB_SITE_URL: ${METABASE_PUBLIC_URL}
+
+      MB_PLUGINS_DIR: /plugins
+
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+
+      TZ: ${TZ}
+
+    volumes:
+
+      - ${DATA_DIR}/metabase/metabase/plugins:/plugins
+
+      - ${DATA_DIR}/metabase/metabase/logs:/logs
+
+      - ${DATA_DIR}/metabase/metabase/data:/metabase-data
+
+    healthcheck:
+
+      test:
+
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://localhost:3000/api/health
+
+      interval: 20s
+
+      timeout: 5s
+
+      retries: 15
+
+    networks:
+
+      bridge-moje:
+        ipv4_address: ${IP_METABASE}
+
+      #
+      # Attached so Traefik can reach the container by
+      # name. Routing itself is handled by the file
+      # provider (configs/traefik/dynamic/metabase.yml),
+      # published only on the "admin" (WireGuard) entryPoint
+      # and protected by default-chain (IP whitelist + BasicAuth).
+      #
+      # No Docker labels / router here on purpose -- this
+      # keeps Metabase off the public Docker provider so it
+      # can never be accidentally exposed on :443.
+      #
+
+      traefik-moje:
+
