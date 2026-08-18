@@ -2,13 +2,13 @@
 
 ###############################################################################
 #
-# Monitoring-Grafana Project
+# Infrastructure-netcup Project
 #
 # File:
 #   scripts/config.sh
 #
 # Description:
-#   Common configuration shared by all Monitoring-Grafana scripts.
+#   Common configuration shared by all Infrastructure-netcup scripts.
 #
 ###############################################################################
 
@@ -19,12 +19,12 @@ IFS=$'\n\t'
 # Project
 ###############################################################################
 
-readonly PROJECT_NAME="Monitoring-Grafana"
+readonly PROJECT_NAME="Infrastructure-netcup"
 
 #
 # Docker Compose stack name
 #
-readonly STACK_NAME="monitoring-grafana"
+readonly STACK_NAME="Infrastructure-netcup"
 
 ###############################################################################
 # Repository
@@ -38,7 +38,7 @@ readonly GIT_DIR="/incus-dir/git/${PROJECT_NAME}"
 
 readonly BASE_DIR="/docker-data"
 
-readonly DATA_DIR="${BASE_DIR}/monitoring-grafana"
+readonly DATA_DIR="${BASE_DIR}/Infrastructure-netcup"
 
 ###############################################################################
 # Dockge
@@ -88,7 +88,7 @@ readonly METABASE_SERVICE="metabase"
 readonly POSTGRES_METABASE_SERVICE="postgres-metabase"
 
 ###############################################################################
-# Monitoring-Grafana data
+# Infrastructure-netcup data
 ###############################################################################
 
 readonly TRAEFIK_DIR="${DATA_DIR}/traefik"
@@ -138,34 +138,3 @@ readonly CROWDSEC_BOUNCER_DIR="${TRAEFIK_DIR}/crowdsec"
 
 readonly CROWDSEC_BOUNCER_KEY_FILE="${CROWDSEC_BOUNCER_DIR}/BOUNCER_KEY_${CROWDSEC_BOUNCER_NAME}"
 
-###############################################################################
-# Grafana
-###############################################################################
-
-readonly GRAFANA_SERVICE="grafana"
-readonly GRAFANA_DIR="${DATA_DIR}/grafana"
-
-###############################################################################
-# Prometheus
-###############################################################################
-
-readonly PROMETHEUS_SERVICE="prometheus"
-readonly PROMETHEUS_DIR="${DATA_DIR}/prometheus"
-
-###############################################################################
-# Alertmanager
-###############################################################################
-
-readonly ALERTMANAGER_DIR="${DATA_DIR}/alertmanager"
-
-###############################################################################
-# Loki
-###############################################################################
-
-readonly LOKI_DIR="${DATA_DIR}/loki"
-
-###############################################################################
-# Alloy
-###############################################################################
-
-readonly ALLOY_DIR="${DATA_DIR}/alloy"

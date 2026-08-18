@@ -2,7 +2,7 @@
 
 ###############################################################################
 #
-# Monitoring-Grafana Project
+# Infrastructure-netcup Project
 #
 # File:
 #   scripts/post-deploy.sh
@@ -60,7 +60,7 @@ source "${SCRIPT_DIR}/lib/post-deploy/summary.sh"
 # Main
 ###############################################################################
 
-print_header "Monitoring-Grafana post deployment"
+print_header "Infrastructure-netcup post deployment"
 
 #
 # Verify environment.

@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# Monitoring-Grafana Project
+# Infrastructure-netcup Project
 #
 # File:
 #   compose.yml
@@ -9,14 +9,14 @@
 #   Main Docker Compose entry point.
 #
 # Repository:
-#   https://github.com/gregorku/Monitoring-Grafana
+#   https://github.com/gregorku/Infrastructure-netcup
 #
 # Requirements:
 #   Docker Compose v2.20+
 #
 ###############################################################################
 
-name: monitoring-grafana
+name: Infrastructure-netcup
 
 include:
 

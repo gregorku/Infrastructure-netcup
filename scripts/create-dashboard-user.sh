@@ -2,7 +2,7 @@
 
 ###############################################################################
 #
-# Monitoring-Grafana Project
+# Infrastructure-netcup Project
 #
 # File:
 #   scripts/create-dashboard-user.sh
@@ -86,4 +86,4 @@ info "File : ${HTPASSWD_FILE}"
 echo
 
 info "Next step:"
-info "Redeploy the Monitoring-Grafana stack from Dockge."
+info "Redeploy the Infrastructure-netcup stack from Dockge."

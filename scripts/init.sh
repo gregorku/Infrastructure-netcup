@@ -2,13 +2,13 @@
 
 ###############################################################################
 #
-# Monitoring-Grafana Project
+# Infrastructure-netcup Project
 #
 # File:
 #   scripts/init.sh
 #
 # Description:
-#   Initialize Monitoring-Grafana project.
+#   Initialize Infrastructure-netcup project.
 #
 # Responsibilities:
 #   - Verify environment
@@ -59,19 +59,13 @@ source "${SCRIPT_DIR}/lib/init/networks.sh"
 source "${SCRIPT_DIR}/lib/init/traefik.sh"
 source "${SCRIPT_DIR}/lib/init/crowdsec.sh"
 source "${SCRIPT_DIR}/lib/init/metabase.sh"
-source "${SCRIPT_DIR}/lib/init/grafana.sh"
-source "${SCRIPT_DIR}/lib/init/prometheus.sh"
-source "${SCRIPT_DIR}/lib/init/alertmanager.sh"
-source "${SCRIPT_DIR}/lib/init/loki.sh"
-source "${SCRIPT_DIR}/lib/init/alloy.sh"
-source "${SCRIPT_DIR}/lib/init/watchtower.sh"
 source "${SCRIPT_DIR}/lib/init/summary.sh"
 
 ###############################################################################
 # Main
 ###############################################################################
 
-print_header "Monitoring-Grafana initialization"
+print_header "Infrastructure-netcup initialization"
 
 #
 # Verify environment.
@@ -107,31 +101,6 @@ init_crowdsec
 # Prepare Metabase layout.
 #
 init_metabase
-
-#
-# Prepare Grafana layout.
-#
-init_grafana
-
-#
-# Prepare Prometheus layout.
-#
-init_prometheus
-
-#
-# Prepare Alertmanager layout.
-#
-init_alertmanager
-
-#
-# Prepare Loki layout.
-#
-init_loki
-
-#
-# Prepare Alloy layout.
-#
-init_alloy
 
 #
 # Prepare Watchtower layout.

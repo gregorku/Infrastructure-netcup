@@ -2,7 +2,7 @@
 
 ###############################################################################
 #
-# Monitoring-Grafana Project
+# Infrastructure-netcup Project
 #
 # File:
 #   scripts/lib/env/policy.sh
@@ -80,53 +80,6 @@ ENV_POLICY[METABASE_DB_PASSWORD]="user"
 ###############################################################################
 
 ENV_POLICY[WATCHTOWER_VERSION]="framework"
-
-###############################################################################
-# Grafana
-###############################################################################
-
-ENV_POLICY[GRAFANA_VERSION]="framework"
-ENV_POLICY[GRAFANA_ADMIN_USER]="user"
-ENV_POLICY[GRAFANA_ADMIN_PASSWORD]="user"
-ENV_POLICY[GRAFANA_DOMAIN]="user"
-ENV_POLICY[IP_GRAFANA]="user"
-
-###############################################################################
-# Prometheus
-###############################################################################
-
-ENV_POLICY[PROMETHEUS_VERSION]="framework"
-ENV_POLICY[PROMETHEUS_RETENTION]="user"
-ENV_POLICY[IP_PROMETHEUS]="user"
-ENV_POLICY[PROMETHEUS_PUBLIC_URL]="user"
-
-###############################################################################
-# SNMP exporter
-###############################################################################
-
-ENV_POLICY[SNMP_EXPORTER_VERSION]="framework"
-ENV_POLICY[IP_SNMP_EXPORTER]="user"
-
-###############################################################################
-# Alertmanager
-###############################################################################
-
-ENV_POLICY[ALERTMANAGER_VERSION]="framework"
-ENV_POLICY[IP_ALERTMANAGER]="user"
-
-###############################################################################
-# Loki
-###############################################################################
-
-ENV_POLICY[LOKI_VERSION]="framework"
-ENV_POLICY[IP_LOKI]="user"
-
-###############################################################################
-# Alloy
-###############################################################################
-
-ENV_POLICY[ALLOY_VERSION]="framework"
-ENV_POLICY[IP_ALLOY]="user"
 
 ###############################################################################
 # Static IP addresses

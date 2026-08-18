@@ -2,13 +2,13 @@
 
 ###############################################################################
 #
-# Monitoring-Grafana Project
+# Infrastructure-netcup Project
 #
 # File:
 #   scripts/lib/checks/load.sh
 #
 # Description:
-#   Load all common Monitoring-Grafana check libraries.
+#   Load all common Infrastructure-netcup check libraries.
 #
 ###############################################################################
 

@@ -2,13 +2,13 @@
 
 ###############################################################################
 #
-# Monitoring-Grafana Project
+# Infrastructure-netcup Project
 #
 # File:
 #   scripts/lib/init/directories.sh
 #
 # Description:
-#   Prepare common Monitoring-Grafana directories.
+#   Prepare common Infrastructure-netcup directories.
 #
 # Responsibilities:
 #   - Create shared data directory
