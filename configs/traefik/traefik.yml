@@ -1,0 +1,278 @@
+###############################################################################
+#
+# Monitoring-Grafana Project
+#
+# File:
+#   configs/traefik/traefik.yml
+#
+# Description:
+#   Static Traefik configuration
+#
+###############################################################################
+
+###############################################################################
+# Global
+###############################################################################
+
+global:
+
+  #
+  # Disable version check
+  #
+
+  checkNewVersion: false
+
+  #
+  # Disable anonymous telemetry
+  #
+
+  sendAnonymousUsage: false
+
+###############################################################################
+# API / Dashboard
+###############################################################################
+
+api:
+
+  #
+  # Enable dashboard
+  #
+
+  dashboard: true
+
+  #
+  # Dashboard is published through
+  # a dedicated router protected
+  # by BasicAuth.
+  #
+
+  insecure: false
+
+###############################################################################
+# Ping
+###############################################################################
+
+ping: {}
+
+###############################################################################
+# EntryPoints
+###############################################################################
+
+entryPoints:
+
+  ###########################################################################
+  # HTTP
+  ###########################################################################
+
+  web:
+
+    address: ":80"
+
+    #
+    # HAProxy (running on the VPS host, in front of this
+    # container) forwards traffic here with PROXY protocol
+    # v2 (send-proxy-v2). Without this, Traefik can't parse
+    # incoming connections at all -- including the ACME
+    # HTTP-01 challenge, which is why no certificate was
+    # ever requested.
+    #
+
+    proxyProtocol:
+
+      trustedIPs:
+
+        - "10.10.10.0/24"
+
+    http:
+
+      redirections:
+
+        entryPoint:
+
+          to: websecure
+
+          scheme: https
+
+          permanent: true
+
+  ###########################################################################
+  # HTTPS
+  ###########################################################################
+
+  websecure:
+
+    address: ":443"
+
+    #
+    # Same as "web" above -- HAProxy does TCP/SNI
+    # passthrough with send-proxy-v2 for :443 too.
+    #
+
+    proxyProtocol:
+
+      trustedIPs:
+
+        - "10.10.10.0/24"
+
+  ###########################################################################
+  # Administration (WireGuard only)
+  ###########################################################################
+
+  admin:
+
+    address: ":8443"
+
+  ###########################################################################
+  # Metabase (dedicated port, no subpath)
+  ###########################################################################
+
+  metabase:
+
+    address: ":8444"
+
+  ###########################################################################
+  # Prometheus (dedicated port, no subpath)
+  ###########################################################################
+
+  prometheus:
+
+    address: ":8445"
+
+  ###########################################################################
+  # Alertmanager (dedicated port, no subpath)
+  ###########################################################################
+
+  alertmanager:
+
+    address: ":8446"
+
+  ###########################################################################
+  # Loki (dedicated port, no subpath)
+  ###########################################################################
+
+  loki:
+
+    address: ":8447"
+
+  ###########################################################################
+  # Alloy (dedicated port, no subpath)
+  ###########################################################################
+
+  alloy:
+
+    address: ":8448"    
+
+  ###########################################################################
+  # Metrics (internal Docker network only, not published to the host)
+  ###########################################################################
+
+  metrics:
+
+    address: ":8082"
+
+###############################################################################
+# Certificate Resolvers (Let's Encrypt)
+###############################################################################
+
+certificatesResolvers:
+
+  letsencrypt:
+
+    acme:
+
+      #
+      # NOTE: acme.email is NOT set here because Traefik
+      # does not expand ${VAR} placeholders inside the
+      # static configuration file. It is passed instead
+      # as a CLI flag in compose/10-traefik.yml, where
+      # Docker Compose performs the substitution.
+      #
+
+      storage: /etc/traefik/acme/acme.json
+
+      #
+      # HTTP-01 challenge.
+      #
+      # Works with any DNS provider, including
+      # dynamic DNS services such as serveftp.net,
+      # as long as port 80 is reachable from the
+      # Internet.
+      #
+
+      httpChallenge:
+
+        entryPoint: web
+
+###############################################################################
+# Metrics
+###############################################################################
+
+metrics:
+
+  prometheus:
+
+    entryPoint: metrics
+
+    addEntryPointsLabels: true
+
+    addRoutersLabels: true
+
+    addServicesLabels: true
+
+###############################################################################
+# Providers
+###############################################################################
+
+providers:
+
+  ###########################################################################
+  # Docker
+  ###########################################################################
+
+  docker:
+
+    endpoint: "unix:///var/run/docker.sock"
+
+    exposedByDefault: false
+
+  ###########################################################################
+  # Dynamic configuration
+  ###########################################################################
+
+  file:
+
+    directory: /etc/traefik/dynamic
+
+    watch: true
+
+###############################################################################
+# Experimental
+###############################################################################
+
+experimental:
+
+  plugins:
+
+    crowdsec:
+
+      moduleName: github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+
+      version: v1.4.5
+
+###############################################################################
+# Logging
+###############################################################################
+
+log:
+
+  level: INFO
+
+  filePath: /var/log/traefik/traefik.log
+
+###############################################################################
+# Access Log
+###############################################################################
+
+accessLog:
+
+  filePath: /var/log/traefik/access.log

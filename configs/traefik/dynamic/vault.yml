@@ -1,0 +1,61 @@
+###############################################################################
+#
+# Monitoring-Grafana Project
+#
+# File:
+#   configs/traefik/dynamic/vault.yml
+#
+# Description:
+#   Central Traefik route to HashiCorp Vault running in a
+#   separate Incus container.
+#
+# Backend:
+#
+#   Vault Incus container
+#   IP: 10.10.10.11
+#   Port: 8200
+#
+# Public hostname:
+#   secrets.serveftp.org
+#
+###############################################################################
+
+http:
+
+  ###########################################################################
+  # Router
+  ###########################################################################
+
+  routers:
+
+    vault:
+
+      entryPoints:
+        - websecure
+
+      rule: "Host(`secrets.serveftp.org`)"
+
+      service: vault
+
+      middlewares:
+        - public-chain
+
+      tls:
+        certResolver: letsencrypt
+
+
+  ###########################################################################
+  # Service
+  ###########################################################################
+
+  services:
+
+    vault:
+
+      loadBalancer:
+
+        passHostHeader: true
+
+        servers:
+
+          - url: "http://10.10.10.11:8200"

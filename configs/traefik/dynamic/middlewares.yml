@@ -1,0 +1,94 @@
+###############################################################################
+#
+# Monitoring-Grafana Project
+#
+# File:
+#   configs/traefik/dynamic/middlewares.yml
+#
+# Description:
+#   Middleware chains.
+#
+###############################################################################
+
+http:
+
+  middlewares:
+
+    #
+    # Default middleware chain
+    #
+    # Applied to most internal services.
+    #
+    default-chain:
+
+      chain:
+
+        middlewares:
+
+          #
+          # Restrict access to trusted networks.
+          #
+          - ip-whitelist
+
+          #
+          # Default HTTP headers.
+          #
+          - headers-default
+
+          #
+          # Additional security headers.
+          #
+          - headers-security
+
+          #
+          # Enable response compression.
+          #
+          - compress
+
+          #
+          # Enable after creating credentials.
+          #
+          - auth-basic
+
+    #
+    # Public middleware chain
+    #
+    # Used by Internet-facing services.
+    #
+    public-chain:
+
+      chain:
+
+        middlewares:
+
+          #
+          # NOTE: HTTP → HTTPS redirect is handled at the
+          # entryPoint level (entryPoints.web.http.redirections
+          # in traefik.yml), not here -- routers using this
+          # chain only listen on "websecure" anyway.
+          #
+
+          #
+          # Default HTTP headers.
+          #
+          - headers-default
+
+          #
+          # Additional security headers.
+          #
+          - headers-security
+
+          #
+          # CrowdSec protection.
+          #
+          - crowdsec
+
+          #
+          # Enable request rate limiting.
+          #
+          - rate-limit
+
+          #
+          # Enable response compression.
+          #
+          - compress
