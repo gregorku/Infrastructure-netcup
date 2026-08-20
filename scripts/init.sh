@@ -103,11 +103,6 @@ init_crowdsec
 init_metabase
 
 #
-# Prepare Watchtower layout.
-#
-init_watchtower
-
-#
 # Print summary.
 #
 init_summary
