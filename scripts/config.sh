@@ -24,7 +24,7 @@ readonly PROJECT_NAME="Infrastructure-netcup"
 #
 # Docker Compose stack name
 #
-readonly STACK_NAME="Infrastructure-netcup"
+readonly STACK_NAME="infrastructure-netcup"
 
 ###############################################################################
 # Repository
@@ -38,7 +38,7 @@ readonly GIT_DIR="/incus-dir/git/${PROJECT_NAME}"
 
 readonly BASE_DIR="/docker-data"
 
-readonly DATA_DIR="${BASE_DIR}/Infrastructure-netcup"
+readonly DATA_DIR="${BASE_DIR}/infrastructure-netcup"
 
 ###############################################################################
 # Dockge
