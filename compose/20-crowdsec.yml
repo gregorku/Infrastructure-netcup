@@ -94,10 +94,6 @@ services:
 
       - no-new-privileges:true
 
-    labels:
-
-      - "com.centurylinklabs.watchtower.enable=true"
-
   ###########################################################################
   # PostgreSQL (CrowdSec alerts/decisions backend)
   #
