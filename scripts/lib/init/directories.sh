@@ -38,7 +38,6 @@ init_directories()
     #
     ensure_directory "${TRAEFIK_DIR}"
     ensure_directory "${CROWDSEC_DIR}"
-    ensure_directory "${WATCHTOWER_DIR}"
     ensure_directory "${METABASE_DIR}"
 
     log_success "Project directories ready."
