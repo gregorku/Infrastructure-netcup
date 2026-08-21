@@ -1,0 +1,86 @@
+###############################################################################
+#
+# Infrastructure-netcup Project
+#
+# File:
+#   configs/traefik/dynamic/loki.yml
+#
+# Description:
+#   Loki router and service.
+#
+# Access:
+#
+#   WireGuard client
+#       ↓
+#   Traefik :8447
+#       ↓
+#   BasicAuth + IP whitelist
+#       ↓
+#   Monitoring-netcup 10.10.10.11:3100
+#
+###############################################################################
+
+http:
+
+  ###########################################################################
+  # Routers
+  ###########################################################################
+
+  routers:
+
+    #########################################################################
+    # Loki
+    #########################################################################
+
+    loki:
+
+      entryPoints:
+
+        - loki
+
+      #
+      # Dedicated port -- no subpath.
+      #
+      #   https://10.10.10.10:8447/
+      #
+      # Access is restricted by default-chain:
+      #
+      #   IP whitelist
+      #   security headers
+      #   compression
+      #   BasicAuth
+      #
+
+      rule: PathPrefix(`/`)
+
+      service: loki
+
+      middlewares:
+
+        - default-chain
+
+      tls:
+
+        options: default
+
+      priority: 1
+
+  ###########################################################################
+  # Services
+  ###########################################################################
+
+  services:
+
+    #########################################################################
+    # Loki
+    #########################################################################
+
+    loki:
+
+      loadBalancer:
+
+        passHostHeader: true
+
+        servers:
+
+          - url: http://10.10.10.11:3100
