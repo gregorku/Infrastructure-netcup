@@ -20,6 +20,10 @@ services:
 
     restart: unless-stopped
 
+    ports:
+
+      - "10.10.10.10:6060:6060"
+
     init: true
 
     depends_on:
