@@ -1,0 +1,67 @@
+###############################################################################
+#
+# Infrastructure-netcup Project
+#
+# File:
+#   configs/traefik/dynamic/grafana.yml
+#
+# Description:
+#   Central Traefik route to Grafana running in the
+#   separate Monitoring-netcup Incus container.
+#
+# Backend:
+#
+#   Monitoring-netcup
+#   IP:   10.10.10.11
+#   Port: 3000
+#
+# Public hostname:
+#
+#   grafana.serveftp.org
+#
+# Authentication:
+#
+#   Grafana handles its own authentication.
+#   Traefik does NOT use BasicAuth for this router.
+#
+###############################################################################
+
+http:
+
+  ###########################################################################
+  # Router
+  ###########################################################################
+
+  routers:
+
+    grafana:
+
+      entryPoints:
+        - websecure
+
+      rule: "Host(`grafana.serveftp.org`)"
+
+      service: grafana
+
+      middlewares:
+        - public-chain
+
+      tls:
+        certResolver: letsencrypt
+
+
+  ###########################################################################
+  # Service
+  ###########################################################################
+
+  services:
+
+    grafana:
+
+      loadBalancer:
+
+        passHostHeader: true
+
+        servers:
+
+          - url: "http://10.10.10.11:3000"
