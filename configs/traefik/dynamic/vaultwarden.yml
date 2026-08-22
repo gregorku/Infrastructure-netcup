@@ -25,7 +25,7 @@ http:
         certResolver: letsencrypt
 
     vaultwarden-admin:
-      rule: "PathPrefix(`/admin`)"
+      rule: "PathPrefix(`/`)"
       entryPoints:
         - vaultwarden-admin
       service: vaultwarden
