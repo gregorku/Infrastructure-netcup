@@ -1,0 +1,39 @@
+# Vaultwarden
+#
+# Public:
+#   https://vault.serveftp.org
+#
+# Admin (WireGuard only):
+#   https://10.100.100.1:8449/admin
+#
+# Backend:
+#   http://10.10.10.12:8000
+#
+# Vaultwarden handles user authentication.
+# Traefik BasicAuth is intentionally not used.
+
+http:
+
+  routers:
+
+    vaultwarden:
+      rule: "Host(`vault.serveftp.org`)"
+      entryPoints:
+        - websecure
+      service: vaultwarden
+      tls:
+        certResolver: letsencrypt
+
+    vaultwarden-admin:
+      rule: "PathPrefix(`/admin`)"
+      entryPoints:
+        - vaultwarden-admin
+      service: vaultwarden
+      tls: {}
+
+  services:
+
+    vaultwarden:
+      loadBalancer:
+        servers:
+          - url: "http://10.10.10.12:8000"
