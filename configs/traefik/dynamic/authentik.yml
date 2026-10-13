@@ -1,0 +1,286 @@
+###############################################################################
+#
+# Infrastructure-netcup Project
+#
+# File:
+#   configs/traefik/dynamic/authentik.yml
+#
+# Description:
+#   Central Traefik route to Authentik running in a
+#   separate Incus container, and a ForwardAuth
+#   middleware reserved for a later stage.
+#
+# Backend:
+#
+#   Authentik
+#   IP:   10.10.10.100
+#   Port: 9000 (HTTP)
+#
+#   Port 9443 is Authentik's HTTPS listener.
+#   It is not used here. TLS terminates on the
+#   websecure entryPoint, same as Grafana.
+#
+# Public hostname:
+#
+#   auth.serveftp.org
+#
+# Authentication:
+#
+#   Authentik handles its own authentication.
+#   Traefik does NOT use BasicAuth for this router.
+#
+#   This router uses authentik-chain, not public-chain.
+#   public-chain sets X-Frame-Options: DENY and
+#   COOP/CORP same-origin. Authentik keeps control of
+#   framing for its flows and SAML, so those headers
+#   are left unset here.
+#
+#   The ForwardAuth middleware in this file is not
+#   attached to this router, to authentik-chain, to
+#   public-chain, to default-chain, or to any other
+#   router.
+#
+# ForwardAuth reference:
+#
+#   https://docs.goauthentik.io/add-secure-apps/providers/proxy/server_traefik/
+#
+#   The address below is the embedded outpost on the
+#   Authentik server. This repository does not define
+#   a separate proxy-outpost container.
+#
+###############################################################################
+
+http:
+
+  ###########################################################################
+  # Router
+  ###########################################################################
+
+  routers:
+
+    authentik:
+
+      entryPoints:
+        - websecure
+
+      rule: "Host(`auth.serveftp.org`)"
+
+      service: authentik
+
+      middlewares:
+        - authentik-chain
+
+      tls:
+        certResolver: letsencrypt
+
+
+  ###########################################################################
+  # Service
+  ###########################################################################
+
+  services:
+
+    authentik:
+
+      loadBalancer:
+
+        passHostHeader: true
+
+        servers:
+
+          - url: "http://10.10.10.100:9000"
+
+
+  ###########################################################################
+  # Middleware
+  ###########################################################################
+  #
+  # authentik-chain keeps CrowdSec, rate limiting and
+  # compression from public-chain, and uses
+  # authentik-headers instead of the shared header
+  # middlewares.
+  #
+  # authentik-headers keeps the other values from
+  # headers-default and headers-security.
+  # frameDeny is omitted, and so are
+  # Cross-Origin-Opener-Policy and
+  # Cross-Origin-Resource-Policy. No
+  # Content-Security-Policy and no X-Frame-Options
+  # are set, so Authentik's own framing header is
+  # not replaced.
+  #
+  # Permissions-Policy is one header. It combines
+  # interest-cohort=() from headers-default with the
+  # feature list from headers-security. Two writers
+  # would keep only the later value.
+  #
+  # authentik-forward-auth is prepared for a later
+  # stage. No router references it yet.
+  #
+  # Attaching it, and any per-application route for
+  # PathPrefix(`/outpost.goauthentik.io/`), belongs
+  # to that later change. In single-application mode
+  # the official example gives that path route a
+  # higher priority and does not put this middleware
+  # on it. Domain-level mode does not need that path
+  # route on each application. The mode is selected
+  # in Authentik, not here.
+  #
+  # Settings follow the current Authentik file-provider
+  # example for Traefik:
+  #
+  #   address
+  #     embedded outpost on the Authentik HTTP listener
+  #   trustForwardHeader
+  #     still set by the Authentik example; required
+  #     so X-Forwarded-* reaches the outpost
+  #   maxResponseBodySize
+  #     4194304 (4 MiB), the value in that example
+  #   authResponseHeaders
+  #     headers copied from the outpost onto the
+  #     upstream request after a successful check
+  #
+  # The "authorization" response header is intentionally
+  # omitted. Authentik documents it only for proxy
+  # providers that emit a custom HTTP Basic header.
+  #
+  ###########################################################################
+
+  middlewares:
+
+    #########################################################################
+    # Chain
+    #########################################################################
+
+    authentik-chain:
+
+      chain:
+
+        middlewares:
+
+          #
+          # Security headers that leave framing to
+          # Authentik. See authentik-headers below.
+          #
+          - authentik-headers
+
+          #
+          # CrowdSec protection.
+          #
+          - crowdsec
+
+          #
+          # Enable request rate limiting.
+          #
+          - rate-limit
+
+          #
+          # Enable response compression.
+          #
+          - compress
+
+    #########################################################################
+    # Headers
+    #########################################################################
+    #
+    # Same response hardening as headers-default and
+    # headers-security, except framing.
+    #
+    # Not set, on purpose:
+    #
+    #   frameDeny
+    #   Content-Security-Policy
+    #   X-Frame-Options
+    #   Cross-Origin-Opener-Policy
+    #   Cross-Origin-Resource-Policy
+    #
+    #########################################################################
+
+    authentik-headers:
+
+      headers:
+
+        #
+        # Prevent MIME type sniffing.
+        #
+        contentTypeNosniff: true
+
+        #
+        # Enable basic XSS protection for older browsers.
+        #
+        browserXssFilter: true
+
+        #
+        # Same referrer policy as headers-default and
+        # headers-security.
+        #
+        referrerPolicy: "strict-origin-when-cross-origin"
+
+        #
+        # Force HTTPS for one year, including subdomains.
+        #
+        stsSeconds: 31536000
+
+        stsIncludeSubdomains: true
+
+        stsPreload: true
+
+        #
+        # Treat X-Forwarded-Proto: https as HTTPS.
+        # Same signal as headers-security.
+        #
+        sslProxyHeaders:
+
+          X-Forwarded-Proto: https
+
+        #
+        # interest-cohort comes from headers-default.
+        # The feature list comes from headers-security.
+        #
+        permissionsPolicy: >-
+          accelerometer=(),
+          camera=(),
+          geolocation=(),
+          gyroscope=(),
+          magnetometer=(),
+          microphone=(),
+          payment=(),
+          usb=(),
+          interest-cohort=()
+
+        customResponseHeaders:
+
+          X-Robots-Tag: "noindex,nofollow"
+
+          Server: ""
+
+          X-Permitted-Cross-Domain-Policies: "none"
+
+    #########################################################################
+    # ForwardAuth
+    #########################################################################
+
+    authentik-forward-auth:
+
+      forwardAuth:
+
+        address: "http://10.10.10.100:9000/outpost.goauthentik.io/auth/traefik"
+
+        trustForwardHeader: true
+
+        maxResponseBodySize: 4194304
+
+        authResponseHeaders:
+
+          - X-authentik-username
+          - X-authentik-groups
+          - X-authentik-entitlements
+          - X-authentik-email
+          - X-authentik-name
+          - X-authentik-uid
+          - X-authentik-jwt
+          - X-authentik-meta-jwks
+          - X-authentik-meta-outpost
+          - X-authentik-meta-provider
+          - X-authentik-meta-app
+          - X-authentik-meta-version
