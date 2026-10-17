@@ -6,8 +6,8 @@
 #   configs/traefik/dynamic/grafana.yml
 #
 # Description:
-#   Central Traefik route to Grafana running in the
-#   separate Monitoring-netcup Incus container.
+#   Central Traefik route to Grafana running in the separate
+#   Monitoring-netcup Incus container.
 #
 # Backend:
 #
@@ -21,21 +21,41 @@
 #
 # Authentication:
 #
-#   Grafana handles its own authentication.
-#   Traefik does NOT use BasicAuth for this router.
+#   Access to Grafana is checked by Authentik using ForwardAuth
+#   in "single application" mode. Traefik continues to proxy
+#   Grafana application traffic directly to the Grafana backend.
+#
+#   The middleware "authentik-forward-auth" and the service
+#   "authentik" are defined in:
+#     configs/traefik/dynamic/authentik.yml
+#
+#   The existing "public-chain" remains enabled for the Grafana
+#   router. It supplies the shared security headers, CrowdSec,
+#   rate limiting and compression.
+#
+#   The Authentik outpost router matches only
+#   /outpost.goauthentik.io/ on the Grafana hostname. It has a
+#   higher priority than the general Grafana router and does not
+#   use ForwardAuth itself; otherwise the authentication request
+#   would loop back into the same authentication middleware.
+#
+#   Grafana's own authentication configuration is not changed by
+#   this file. Keep it as currently configured until ForwardAuth
+#   has been tested successfully end to end.
 #
 ###############################################################################
 
 http:
-
   ###########################################################################
   # Router
   ###########################################################################
 
   routers:
+    #########################################################################
+    # Grafana application
+    #########################################################################
 
     grafana:
-
       entryPoints:
         - websecure
 
@@ -45,23 +65,49 @@ http:
 
       middlewares:
         - public-chain
+        - authentik-forward-auth
 
       tls:
         certResolver: letsencrypt
 
+    #########################################################################
+    # Authentik outpost endpoint for single-application ForwardAuth
+    #########################################################################
+    # This route must take precedence over the general Grafana route.
+    # Do not attach "authentik-forward-auth" here: the outpost endpoint
+    # must be reachable without calling ForwardAuth recursively.
+    #########################################################################
+
+    grafana-authentik-outpost:
+      entryPoints:
+        - websecure
+
+      rule: "Host(`grafana.serveftp.org`) && PathPrefix(`/outpost.goauthentik.io/`)"
+
+      priority: 100
+
+      service: authentik
+
+      tls:
+        certResolver: letsencrypt
 
   ###########################################################################
   # Service
   ###########################################################################
 
   services:
+    #########################################################################
+    # Grafana backend in Monitoring-netcup
+    #########################################################################
 
     grafana:
-
       loadBalancer:
-
         passHostHeader: true
 
         servers:
-
           - url: "http://10.10.10.11:3000"
+
+    #########################################################################
+    # The "authentik" service is intentionally not redefined here.
+    # It is shared from authentik.yml and points to 10.10.10.100:9000.
+    #########################################################################
