@@ -6,81 +6,148 @@
 #   configs/traefik/dynamic/prometheus.yml
 #
 # Description:
-#   Prometheus router and service.
+#   Traefik router and service for Prometheus in the separate
+#   Monitoring-netcup Incus container, protected by Authentik ForwardAuth.
 #
-# Access:
+# Access path:
 #
 #   WireGuard client
-#       ↓
-#   Traefik :8445
-#       ↓
-#   BasicAuth + IP whitelist
-#       ↓
-#   Monitoring-netcup 10.10.10.11:9090
+#       -> VPS 10.100.100.1:9445
+#       -> DNAT 9445 to Traefik entryPoint prometheus :8445
+#       -> IP whitelist and security middleware
+#       -> Authentik ForwardAuth
+#       -> Monitoring-netcup 10.10.10.11:9090
+#
+# Public/client URL:
+#
+#   https://10.100.100.1:9445/targets
+#
+# Authentik:
+#
+#   Proxy Provider: Provider for Prometheus-netcup
+#   Mode: Forward auth (single application)
+#   Embedded outpost: authentik Embedded Outpost
+#   Client-facing outpost path: /outpost.goauthentik.io/
+#
+# Security:
+#
+#   The original default-chain includes BasicAuth. This file replaces that
+#   chain for Prometheus with an equivalent chain that preserves the IP
+#   whitelist, security headers and compression, but uses Authentik instead
+#   of BasicAuth.
+#
+#   The outpost endpoint has its own higher-priority router. It preserves
+#   the IP whitelist and shared headers/compression, but intentionally does
+#   not use BasicAuth or ForwardAuth; otherwise the outpost would recursively
+#   trigger authentication.
 #
 ###############################################################################
 
 http:
-
   ###########################################################################
   # Routers
   ###########################################################################
 
   routers:
-
     #########################################################################
-    # Prometheus
+    # Prometheus application
     #########################################################################
 
     prometheus:
-
       entryPoints:
-
         - prometheus
 
-      #
-      # Dedicated port -- no subpath.
-      #
-      #   https://10.10.10.10:8445/
-      #
-      # Access is restricted by default-chain:
-      #
-      #   ip-whitelist
-      #   security headers
-      #   compression
-      #   BasicAuth
-      #
-
-      rule: PathPrefix(`/`)
+      # Dedicated entryPoint -- no subpath required for Prometheus itself.
+      # Public URL uses port 9445; VPS DNAT forwards it to Traefik :8445.
+      rule: "PathPrefix(`/`)"
 
       service: prometheus
 
       middlewares:
-
-        - default-chain
+        - prometheus-authentik-chain
 
       tls:
-
         options: default
 
       priority: 1
+
+    #########################################################################
+    # Authentik embedded outpost endpoint
+    #########################################################################
+    # Must win over the general PathPrefix(`/`) router. Do not attach the
+    # ForwardAuth middleware here; these requests must reach the outpost
+    # without recursively invoking the authorization check.
+    #########################################################################
+
+    prometheus-authentik-outpost:
+      entryPoints:
+        - prometheus
+
+      rule: "PathPrefix(`/outpost.goauthentik.io/`)"
+
+      service: authentik
+
+      middlewares:
+        - prometheus-outpost-chain
+
+      tls:
+        options: default
+
+      priority: 100
 
   ###########################################################################
   # Services
   ###########################################################################
 
   services:
-
     #########################################################################
-    # Prometheus
+    # Prometheus backend
     #########################################################################
 
     prometheus:
-
       loadBalancer:
-
         passHostHeader: true
 
         servers:
+          - url: "http://10.10.10.11:9090"
 
-          - url: http://10.10.10.11:9090
+    #########################################################################
+    # The 'authentik' service is defined in authentik.yml and points to
+    # http://10.10.10.100:9000. It is shared by the outpost router here.
+    #########################################################################
+
+  ###########################################################################
+  # Middlewares
+  ###########################################################################
+
+  middlewares:
+    #########################################################################
+    # Protected Prometheus route
+    #########################################################################
+    # Preserves the non-BasicAuth protections from default-chain and adds
+    # the existing Authentik ForwardAuth middleware defined in authentik.yml.
+    #########################################################################
+
+    prometheus-authentik-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
+          - authentik-forward-auth
+
+    #########################################################################
+    # Outpost endpoint route
+    #########################################################################
+    # Keeps the IP whitelist and shared response middleware, but excludes
+    # both BasicAuth and ForwardAuth so the outpost can answer the request.
+    #########################################################################
+
+    prometheus-outpost-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
