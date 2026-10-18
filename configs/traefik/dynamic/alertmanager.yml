@@ -6,81 +6,148 @@
 #   configs/traefik/dynamic/alertmanager.yml
 #
 # Description:
-#   Alertmanager router and service.
+#   Traefik router and service for Alertmanager in the separate
+#   Monitoring-netcup Incus container, protected by Authentik ForwardAuth.
 #
-# Access:
+# Access path:
 #
 #   WireGuard client
-#       ↓
-#   Traefik :8446
-#       ↓
-#   BasicAuth + IP whitelist
-#       ↓
-#   Monitoring-netcup 10.10.10.11:9093
+#       -> VPS 10.100.100.1:9446
+#       -> DNAT 9446 to Traefik entryPoint alertmanager :8446
+#       -> IP whitelist and security middleware
+#       -> Authentik ForwardAuth
+#       -> Monitoring-netcup 10.10.10.11:9093
+#
+# Public/client URL:
+#
+#   https://10.100.100.1:9446/
+#
+# Authentik:
+#
+#   Proxy Provider: Provider for Alertmanager-netcup
+#   Mode: Forward auth (single application)
+#   Embedded outpost: authentik Embedded Outpost
+#   Client-facing outpost path: /outpost.goauthentik.io/
+#
+# Security:
+#
+#   The original default-chain includes BasicAuth. This file replaces that
+#   chain for Alertmanager with an equivalent chain that preserves the IP
+#   whitelist, security headers and compression, but uses Authentik instead
+#   of BasicAuth.
+#
+#   The outpost endpoint has its own higher-priority router. It preserves
+#   the IP whitelist and shared headers/compression, but intentionally does
+#   not use BasicAuth or ForwardAuth; otherwise the outpost would recursively
+#   trigger authentication.
 #
 ###############################################################################
 
 http:
-
   ###########################################################################
   # Routers
   ###########################################################################
 
   routers:
-
     #########################################################################
-    # Alertmanager
+    # Alertmanager application
     #########################################################################
 
     alertmanager:
-
       entryPoints:
-
         - alertmanager
 
-      #
-      # Dedicated port -- no subpath.
-      #
-      #   https://10.10.10.10:8446/
-      #
-      # Access is restricted by default-chain:
-      #
-      #   IP whitelist
-      #   security headers
-      #   compression
-      #   BasicAuth
-      #
-
-      rule: PathPrefix(`/`)
+      # Dedicated entryPoint -- no subpath required for Alertmanager itself.
+      # Client URL uses port 9446; VPS DNAT forwards it to Traefik :8446.
+      rule: "PathPrefix(`/`)"
 
       service: alertmanager
 
       middlewares:
-
-        - default-chain
+        - alertmanager-authentik-chain
 
       tls:
-
         options: default
 
       priority: 1
+
+    #########################################################################
+    # Authentik embedded outpost endpoint
+    #########################################################################
+    # Must win over the general PathPrefix(`/`) router. Do not attach the
+    # ForwardAuth middleware here; these requests must reach the outpost
+    # without recursively invoking the authorization check.
+    #########################################################################
+
+    alertmanager-authentik-outpost:
+      entryPoints:
+        - alertmanager
+
+      rule: "PathPrefix(`/outpost.goauthentik.io/`)"
+
+      service: authentik
+
+      middlewares:
+        - alertmanager-outpost-chain
+
+      tls:
+        options: default
+
+      priority: 100
 
   ###########################################################################
   # Services
   ###########################################################################
 
   services:
-
     #########################################################################
-    # Alertmanager
+    # Alertmanager backend
     #########################################################################
 
     alertmanager:
-
       loadBalancer:
-
         passHostHeader: true
 
         servers:
+          - url: "http://10.10.10.11:9093"
 
-          - url: http://10.10.10.11:9093
+    #########################################################################
+    # The 'authentik' service is defined in authentik.yml and points to
+    # http://10.10.10.100:9000. It is shared by the outpost router here.
+    #########################################################################
+
+  ###########################################################################
+  # Middlewares
+  ###########################################################################
+
+  middlewares:
+    #########################################################################
+    # Protected Alertmanager route
+    #########################################################################
+    # Preserves the non-BasicAuth protections from default-chain and adds
+    # the existing Authentik ForwardAuth middleware defined in authentik.yml.
+    #########################################################################
+
+    alertmanager-authentik-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
+          - authentik-forward-auth
+
+    #########################################################################
+    # Outpost endpoint route
+    #########################################################################
+    # Keeps the IP whitelist and shared response middleware, but excludes
+    # both BasicAuth and ForwardAuth so the outpost can answer the request.
+    #########################################################################
+
+    alertmanager-outpost-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
