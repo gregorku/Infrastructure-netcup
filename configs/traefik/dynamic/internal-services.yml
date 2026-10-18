@@ -8,14 +8,55 @@
 # Description:
 #   Internal Traefik services and routers.
 #
+# Access:
+#
+#   WireGuard client
+#       -> VPS 10.100.100.1:9443
+#       -> DNAT 9443 to Traefik entryPoint admin :8443
+#       -> IP whitelist and security middleware
+#       -> Authentik ForwardAuth
+#       -> Traefik internal dashboard/API (api@internal)
+#
+# Client URL:
+#
+#   https://10.100.100.1:9443/dashboard/
+#
+# Authentication:
+#
+#   Authentik checks access to the dashboard and API.
+#   Traefik's existing BasicAuth is intentionally removed from this router.
+#   Authentik's own sign-in and MFA remain responsible for authentication.
+#
+# Authentik:
+#
+#   Application: Traefik-netcup
+#   Provider:    Provider for Traefik-netcup
+#   Mode:        Forward auth (single application)
+#   Outpost:     authentik Embedded Outpost
+#   Outpost path: /outpost.goauthentik.io/
+#
+# Security:
+#
+#   The dashboard router keeps the IP whitelist, headers and compression,
+#   and adds the existing authentik-forward-auth middleware.
+#
+#   The outpost path has a separate router and a higher priority. It keeps
+#   the IP whitelist, headers and compression but does not use BasicAuth or
+#   ForwardAuth; otherwise the outpost request could loop recursively.
+#
 ###############################################################################
 
 http:
+  ###########################################################################
+  # Routers
+  ###########################################################################
 
   routers:
+    #########################################################################
+    # Traefik dashboard and API
+    #########################################################################
 
     traefik-dashboard:
-
       entryPoints:
         - admin
 
@@ -27,9 +68,67 @@ http:
       service: api@internal
 
       middlewares:
-        - default-chain
+        - traefik-authentik-chain
 
       tls:
         options: default
 
       priority: 100
+
+    #########################################################################
+    # Authentik embedded outpost endpoint
+    #########################################################################
+    # This route must reach Authentik without triggering ForwardAuth again.
+    #########################################################################
+
+    traefik-authentik-outpost:
+      entryPoints:
+        - admin
+
+      rule: "PathPrefix(`/outpost.goauthentik.io/`)"
+
+      service: authentik
+
+      middlewares:
+        - traefik-outpost-chain
+
+      tls:
+        options: default
+
+      priority: 200
+
+  ###########################################################################
+  # Middlewares
+  ###########################################################################
+
+  middlewares:
+    #########################################################################
+    # Dashboard protection
+    #########################################################################
+    # Keeps the existing network restriction and security middleware from
+    # default-chain, replaces BasicAuth with Authentik ForwardAuth.
+    #########################################################################
+
+    traefik-authentik-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
+          - authentik-forward-auth
+
+    #########################################################################
+    # Outpost endpoint protection
+    #########################################################################
+    # Keeps the IP whitelist and shared security middleware. Do not attach
+    # auth-basic or authentik-forward-auth to the outpost endpoint.
+    #########################################################################
+
+    traefik-outpost-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
