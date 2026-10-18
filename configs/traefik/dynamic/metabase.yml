@@ -6,66 +6,152 @@
 #   configs/traefik/dynamic/metabase.yml
 #
 # Description:
-#   Metabase router and service.
+#   Traefik router and service for Metabase, protected by Authentik ForwardAuth.
+#
+# Access path:
+#
+#   WireGuard client
+#       -> VPS 10.100.100.1:9444
+#       -> DNAT 9444 to Traefik entryPoint metabase :8444
+#       -> IP whitelist and security middleware
+#       -> Authentik ForwardAuth
+#       -> Metabase service on the Infrastructure Docker network
+#
+# Client URL:
+#
+#   https://10.100.100.1:9444/
+#
+# Authentik:
+#
+#   Proxy Provider: Provider for Metabase-netcup
+#   Mode: Forward auth (single application)
+#   Embedded outpost: authentik Embedded Outpost
+#   Client-facing outpost path: /outpost.goauthentik.io/
+#
+# Authentication:
+#
+#   This router adds Authentik authentication in front of Metabase.
+#   Metabase's own login remains enabled, so users may still need to sign
+#   in to Metabase after successfully authenticating with Authentik.
+#
+# Security:
+#
+#   The original default-chain includes BasicAuth. This file replaces that
+#   chain with an equivalent chain that preserves the IP whitelist, security
+#   headers and compression, but uses Authentik instead of BasicAuth.
+#
+#   The outpost endpoint has its own higher-priority router. It preserves
+#   the IP whitelist and shared headers/compression, but intentionally does
+#   not use BasicAuth or ForwardAuth; otherwise the outpost would recursively
+#   trigger authentication.
 #
 ###############################################################################
 
 http:
-
   ###########################################################################
   # Routers
   ###########################################################################
 
   routers:
-
     #########################################################################
-    # Metabase
+    # Metabase application
     #########################################################################
 
     metabase:
-
       entryPoints:
-
         - metabase
 
-      #
-      # Administration URL
-      #
-      #   https://10.100.100.1:9444/
-      #
-      # (dedicated port -- no subpath, see traefik.yml)
-      #
-
-      rule: PathPrefix(`/`)
+      # Dedicated entryPoint -- no subpath required for Metabase itself.
+      # Client URL uses port 9444; VPS DNAT forwards it to Traefik :8444.
+      rule: "PathPrefix(`/`)"
 
       service: metabase
 
       middlewares:
-
-        - default-chain
+        - metabase-authentik-chain
 
       tls:
-
         options: default
 
       priority: 1
+
+    #########################################################################
+    # Authentik embedded outpost endpoint
+    #########################################################################
+    # Must win over the general PathPrefix(`/`) router. Do not attach
+    # ForwardAuth here; the outpost needs to answer auth requests without
+    # recursively invoking the same authentication middleware.
+    #########################################################################
+
+    metabase-authentik-outpost:
+      entryPoints:
+        - metabase
+
+      rule: "PathPrefix(`/outpost.goauthentik.io/`)"
+
+      service: authentik
+
+      middlewares:
+        - metabase-outpost-chain
+
+      tls:
+        options: default
+
+      priority: 100
 
   ###########################################################################
   # Services
   ###########################################################################
 
   services:
-
     #########################################################################
-    # Metabase
+    # Metabase backend
     #########################################################################
 
     metabase:
-
       loadBalancer:
-
         passHostHeader: true
 
         servers:
+          - url: "http://metabase:3000"
 
-          - url: http://metabase:3000
+    #########################################################################
+    # The 'authentik' service is defined in authentik.yml and points to
+    # http://10.10.10.100:9000. It is shared by the outpost router here.
+    #########################################################################
+
+  ###########################################################################
+  # Middlewares
+  ###########################################################################
+
+  middlewares:
+    #########################################################################
+    # Protected Metabase route
+    #########################################################################
+    # Preserves the non-BasicAuth protections from default-chain and adds
+    # the existing Authentik ForwardAuth middleware defined in authentik.yml.
+    #########################################################################
+
+    metabase-authentik-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
+          - authentik-forward-auth
+
+    #########################################################################
+    # Outpost endpoint route
+    #########################################################################
+    # Keeps the IP whitelist and shared response middleware, but excludes
+    # both BasicAuth and ForwardAuth so the outpost can answer the request.
+    #########################################################################
+
+    metabase-outpost-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
