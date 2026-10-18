@@ -1,28 +1,73 @@
-# Vaultwarden
+###############################################################################
 #
-# Public:
+# Infrastructure-netcup Project
+#
+# File:
+#   configs/traefik/dynamic/vaultwarden.yml
+#
+# Public web vault:
 #   https://vault.serveftp.org
 #
-# Admin (WireGuard only):
+# Admin (WireGuard only; unchanged):
 #   https://10.100.100.1:8449/admin
 #
 # Backend:
 #   http://10.10.10.12:8000
 #
-# Vaultwarden handles user authentication.
-# Traefik BasicAuth is intentionally not used.
+# Authentication:
+#   The web vault is protected by Authentik ForwardAuth.
+#   Vaultwarden's own user authentication and vault encryption remain enabled.
+#   ForwardAuth does NOT replace the user's Vaultwarden master password.
+#
+# Bitwarden browser extension / desktop / mobile clients:
+#   The Authentik Proxy Provider MUST define suitable "Unauthenticated Paths"
+#   for the Vaultwarden API endpoints and client notification endpoints.
+#   Otherwise Bitwarden clients, which do not have an Authentik browser
+#   session, may be redirected to Authentik and fail to sign in or sync.
+#   See the accompanying setup notes before deploying this file.
+#
+# Authentik outpost:
+#   The /outpost.goauthentik.io/ path has a dedicated router to the shared
+#   Authentik service. That router intentionally has no ForwardAuth middleware
+#   to prevent a recursive authentication loop.
+#
+###############################################################################
 
 http:
-
   routers:
+    #########################################################################
+    # Public web vault
+    #########################################################################
 
     vaultwarden:
       rule: "Host(`vault.serveftp.org`)"
       entryPoints:
         - websecure
       service: vaultwarden
+      middlewares:
+        - authentik-forward-auth
       tls:
         certResolver: letsencrypt
+
+    #########################################################################
+    # Authentik embedded outpost endpoint
+    #########################################################################
+    # Must take precedence over the general Vaultwarden host router.
+    # Do not attach authentik-forward-auth to this route.
+    #########################################################################
+
+    vaultwarden-authentik-outpost:
+      rule: "Host(`vault.serveftp.org`) && PathPrefix(`/outpost.goauthentik.io/`)"
+      entryPoints:
+        - websecure
+      service: authentik
+      tls:
+        certResolver: letsencrypt
+      priority: 100
+
+    #########################################################################
+    # Vaultwarden admin (WireGuard-only entryPoint; unchanged)
+    #########################################################################
 
     vaultwarden-admin:
       rule: "PathPrefix(`/`)"
@@ -32,8 +77,12 @@ http:
       tls: {}
 
   services:
-
     vaultwarden:
       loadBalancer:
         servers:
           - url: "http://10.10.10.12:8000"
+
+    #########################################################################
+    # The 'authentik' service is defined in authentik.yml and points to
+    # http://10.10.10.100:9000. It is reused for the outpost endpoint above.
+    #########################################################################
