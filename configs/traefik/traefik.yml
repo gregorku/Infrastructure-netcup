@@ -114,6 +114,20 @@ entryPoints:
 
         - "10.10.10.0/24"
 
+    #
+    # Default readTimeout is 60s for the entire request
+    # body. Nextcloud uploads on gregor.serveftp.org
+    # need longer. 0s disables the limit. writeTimeout
+    # already defaults to 0s. This applies to every
+    # router on websecure.
+    #
+
+    transport:
+
+      respondingTimeouts:
+
+        readTimeout: 0s
+
   ###########################################################################
   # Administration (WireGuard only)
   ###########################################################################

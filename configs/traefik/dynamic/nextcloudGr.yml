@@ -1,18 +1,191 @@
+###############################################################################
+#
+# Infrastructure-netcup Project
+#
+# File:
+#   configs/traefik/dynamic/nextcloudGr.yml
+#
+# Description:
+#   Central Traefik route to Nextcloud running behind
+#   WireGuard wg2.
+#
+# Backend:
+#
+#   Nextcloud
+#   IP:   10.110.100.12
+#   Port: 8080
+#
+# Public hostname:
+#
+#   gregor.serveftp.org
+#
+# Authentication:
+#
+#   Nextcloud keeps its own login. This router does not
+#   use Authentik ForwardAuth. Desktop, mobile, WebDAV,
+#   CalDAV and CardDAV clients have no Authentik browser
+#   session and would be sent to the Authentik login page.
+#
+# Headers:
+#
+#   public-chain is not used. Its frameDeny, COOP and CORP
+#   headers and the camera/microphone Permissions-Policy
+#   break Nextcloud framing, federation and Talk.
+#   nextcloud-chain keeps CrowdSec, rate limiting and
+#   compression from public-chain and uses nextcloud-headers
+#   instead of headers-default and headers-security.
+#
+#   Not set, on purpose:
+#
+#     frameDeny
+#     Content-Security-Policy
+#     X-Frame-Options
+#     Cross-Origin-Opener-Policy
+#     Cross-Origin-Resource-Policy
+#
+#   camera and microphone are omitted from Permissions-Policy
+#   so Nextcloud Talk can use them. Nextcloud still sends its
+#   own framing headers.
+#
+###############################################################################
+
 http:
+
+  ###########################################################################
+  # Router
+  ###########################################################################
+
   routers:
+
     nextcloud-gr:
+
       entryPoints:
+
         - websecure
+
       rule: "Host(`gregor.serveftp.org`)"
+
       service: nextcloud-gr
+
       middlewares:
-        - public-chain
+
+        - nextcloud-chain
+
       tls:
+
         certResolver: letsencrypt
 
+  ###########################################################################
+  # Service
+  ###########################################################################
+
   services:
+
     nextcloud-gr:
+
       loadBalancer:
+
         passHostHeader: true
+
         servers:
+
           - url: "http://10.110.100.12:8080"
+
+  ###########################################################################
+  # Middleware
+  ###########################################################################
+
+  middlewares:
+
+    #########################################################################
+    # Chain
+    #########################################################################
+
+    nextcloud-chain:
+
+      chain:
+
+        middlewares:
+
+          #
+          # Headers that leave framing, COOP/CORP and
+          # camera/microphone to Nextcloud.
+          #
+          - nextcloud-headers
+
+          #
+          # CrowdSec protection.
+          #
+          - crowdsec
+
+          #
+          # Shared request rate limit.
+          #
+          - rate-limit
+
+          #
+          # Enable response compression.
+          #
+          - compress
+
+    #########################################################################
+    # Headers
+    #########################################################################
+
+    nextcloud-headers:
+
+      headers:
+
+        #
+        # Prevent MIME type sniffing.
+        #
+        contentTypeNosniff: true
+
+        #
+        # Enable basic XSS protection for older browsers.
+        #
+        browserXssFilter: true
+
+        #
+        # Same referrer policy as headers-default and
+        # headers-security.
+        #
+        referrerPolicy: "strict-origin-when-cross-origin"
+
+        #
+        # Force HTTPS for one year, including subdomains.
+        #
+        stsSeconds: 31536000
+
+        stsIncludeSubdomains: true
+
+        stsPreload: true
+
+        #
+        # Treat X-Forwarded-Proto: https as HTTPS.
+        # Same signal as headers-security.
+        #
+        sslProxyHeaders:
+
+          X-Forwarded-Proto: https
+
+        #
+        # interest-cohort comes from headers-default.
+        # camera and microphone stay allowed for Talk.
+        #
+        permissionsPolicy: >-
+          accelerometer=(),
+          geolocation=(),
+          gyroscope=(),
+          magnetometer=(),
+          payment=(),
+          usb=(),
+          interest-cohort=()
+
+        customResponseHeaders:
+
+          X-Robots-Tag: "noindex,nofollow"
+
+          Server: ""
+
+          X-Permitted-Cross-Domain-Policies: "none"
