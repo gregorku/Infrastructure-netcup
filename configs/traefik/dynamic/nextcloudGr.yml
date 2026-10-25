@@ -1,0 +1,18 @@
+http:
+  routers:
+    nextcloud-gr:
+      entryPoints:
+        - websecure
+      rule: "Host(`gregor.serveftp.org`)"
+      service: nextcloud-gr
+      middlewares:
+        - public-chain
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    nextcloud-gr:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://10.110.100.12:8080"
