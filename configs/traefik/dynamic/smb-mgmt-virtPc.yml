@@ -132,4 +132,3 @@ http:
           - headers-default
           - headers-security
           - compress
-test
