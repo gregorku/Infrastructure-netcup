@@ -1,0 +1,134 @@
+###############################################################################
+#
+# Infrastructure-netcup Project
+#
+# File:
+#   configs/traefik/dynamic/smb-mgmt-virtPc.yml
+#
+# Description:
+#   Traefik router and service for smb-mgmt on virtPc, protected by
+#   Authentik ForwardAuth and reachable through the WireGuard-only entryPoint.
+#
+# Access path:
+#
+#   WireGuard client
+#       -> VPS 10.100.100.1:<VPN_PORT>
+#       -> DNAT to Traefik entryPoint smb-mgmt-virtPc :8451
+#       -> IP whitelist and security middleware
+#       -> Authentik ForwardAuth
+#       -> smb-mgmt virtPc 10.100.100.12:8080
+#
+# Authentik:
+#
+#   Proxy Provider: create a dedicated provider/application for smb-mgmt-virtPc
+#   Mode: Forward auth (single application)
+#   Embedded outpost: authentik Embedded Outpost
+#   Client-facing outpost path: /outpost.goauthentik.io/
+#
+# Security:
+#
+#   The application router uses the existing IP whitelist, security headers,
+#   compression and Authentik ForwardAuth middleware.
+#
+#   The outpost endpoint has its own higher-priority router. It intentionally
+#   does not use ForwardAuth, otherwise the outpost would recursively trigger
+#   the authorization check.
+#
+###############################################################################
+
+http:
+  ###########################################################################
+  # Routers
+  ###########################################################################
+
+  routers:
+    #########################################################################
+    # SMB Management application
+    #########################################################################
+
+    smb-mgmt-virtPc:
+      entryPoints:
+        - smb-mgmt-virtPc
+
+      # Dedicated entryPoint; no subpath required for the application.
+      rule: "PathPrefix(`/`)"
+
+      service: smb-mgmt-virtPc
+
+      middlewares:
+        - smb-mgmt-virtPc-authentik-chain
+
+      tls:
+        options: default
+
+      priority: 1
+
+    #########################################################################
+    # Authentik embedded outpost endpoint
+    #########################################################################
+
+    smb-mgmt-virtPc-authentik-outpost:
+      entryPoints:
+        - smb-mgmt-virtPc
+
+      rule: "PathPrefix(`/outpost.goauthentik.io/`)"
+
+      service: authentik
+
+      middlewares:
+        - smb-mgmt-virtPc-outpost-chain
+
+      tls:
+        options: default
+
+      priority: 100
+
+  ###########################################################################
+  # Services
+  ###########################################################################
+
+  services:
+    #########################################################################
+    # SMB Management backend
+    #########################################################################
+
+    smb-mgmt-virtPc:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://10.100.100.12:8080"
+
+    #########################################################################
+    # The 'authentik' service is defined in authentik.yml and points to
+    # http://10.10.10.100:9000. It is shared by the outpost router here.
+    #########################################################################
+
+  ###########################################################################
+  # Middlewares
+  ###########################################################################
+
+  middlewares:
+    #########################################################################
+    # Protected SMB Management route
+    #########################################################################
+
+    smb-mgmt-virtPc-authentik-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
+          - authentik-forward-auth
+
+    #########################################################################
+    # Outpost endpoint route
+    #########################################################################
+
+    smb-mgmt-virtPc-outpost-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
