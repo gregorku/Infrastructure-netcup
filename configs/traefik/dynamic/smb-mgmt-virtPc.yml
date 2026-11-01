@@ -96,7 +96,7 @@ http:
       loadBalancer:
         passHostHeader: true
         servers:
-          - url: "http://10.100.100.12:8080"
+          - url: "http://10.100.100.12:23081"
 
     #########################################################################
     # The 'authentik' service is defined in authentik.yml and points to
