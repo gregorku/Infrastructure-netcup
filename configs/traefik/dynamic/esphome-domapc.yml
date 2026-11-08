@@ -1,0 +1,142 @@
+###############################################################################
+#
+# Infrastructure-netcup Project
+#
+# File:
+#   configs/traefik/dynamic/esphome-domapc.yml
+#
+# Description:
+#   Traefik router and service for ESPHome Dashboard running on domaPc,
+#   protected by Authentik ForwardAuth.
+#
+# Access path:
+#
+#   WireGuard client
+#       -> VPS 10.100.100.1:8456
+#       -> Traefik entryPoint esphome :8456
+#       -> IP whitelist and security middleware
+#       -> Authentik ForwardAuth
+#       -> domaPc 10.110.100.100:6052
+#
+# Client URL:
+#
+#   https://10.100.100.1:8456/
+#
+# Authentication:
+#
+#   Authentik Proxy Provider for ESPHome
+#   Mode: Forward auth (single application)
+#   Embedded outpost: authentik Embedded Outpost
+#   Client-facing outpost path: /outpost.goauthentik.io/
+#
+# Security:
+#
+#   Access is restricted by the existing ip-whitelist middleware.
+#
+#   The application router uses Authentik ForwardAuth.
+#
+#   The outpost endpoint has its own higher-priority router.
+#   It preserves the IP whitelist and shared headers/compression,
+#   but intentionally does not use ForwardAuth; otherwise the
+#   outpost would recursively trigger authentication.
+#
+###############################################################################
+
+http:
+  ###########################################################################
+  # Routers
+  ###########################################################################
+
+  routers:
+    #########################################################################
+    # ESPHome Dashboard application
+    #########################################################################
+
+    esphome-domapc:
+      entryPoints:
+        - esphome
+
+      rule: "PathPrefix(`/`)"
+
+      service: esphome-domapc
+
+      middlewares:
+        - esphome-domapc-authentik-chain
+
+      tls:
+        options: default
+
+      priority: 1
+
+    #########################################################################
+    # Authentik embedded outpost endpoint
+    #########################################################################
+
+    esphome-domapc-authentik-outpost:
+      entryPoints:
+        - esphome
+
+      rule: "PathPrefix(`/outpost.goauthentik.io/`)"
+
+      service: authentik
+
+      middlewares:
+        - esphome-domapc-outpost-chain
+
+      tls:
+        options: default
+
+      priority: 100
+
+  ###########################################################################
+  # Services
+  ###########################################################################
+
+  services:
+    #########################################################################
+    # ESPHome Dashboard backend
+    #########################################################################
+
+    esphome-domapc:
+      loadBalancer:
+        passHostHeader: true
+
+        servers:
+          - url: "http://10.110.100.100:6052"
+
+    #########################################################################
+    # The 'authentik' service is defined in authentik.yml.
+    #
+    # It points to http://10.10.10.100:9000.
+    # It is shared by the outpost router.
+    #########################################################################
+
+  ###########################################################################
+  # Middlewares
+  ###########################################################################
+
+  middlewares:
+    #########################################################################
+    # Protected ESPHome route
+    #########################################################################
+
+    esphome-domapc-authentik-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
+          - authentik-forward-auth
+
+    #########################################################################
+    # Authentik outpost endpoint
+    #########################################################################
+
+    esphome-domapc-outpost-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress

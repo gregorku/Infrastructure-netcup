@@ -1,0 +1,144 @@
+###############################################################################
+#
+# Infrastructure-netcup Project
+#
+# File:
+#   configs/traefik/dynamic/zigbeemqtt-domapc.yml
+#
+# Description:
+#   Traefik router and service for Zigbee2MQTT running on domaPc,
+#   protected by Authentik ForwardAuth.
+#
+# Access path:
+#
+#   WireGuard client
+#       -> VPS 10.100.100.1:8455
+#       -> Traefik entryPoint zigbee2mqtt :8455
+#       -> IP whitelist and security middleware
+#       -> Authentik ForwardAuth
+#       -> domaPc 10.110.100.100:8080
+#       -> MikroTik DNAT
+#       -> Incus container LAN IP:8080
+#
+# Client URL:
+#
+#   https://10.100.100.1:8455/
+#
+# Authentication:
+#
+#   Authentik Proxy Provider for Zigbee2MQTT
+#   Mode: Forward auth (single application)
+#   Embedded outpost: authentik Embedded Outpost
+#   Client-facing outpost path: /outpost.goauthentik.io/
+#
+# Security:
+#
+#   Access is restricted by the existing ip-whitelist middleware.
+#
+#   The application router uses Authentik ForwardAuth.
+#
+#   The outpost endpoint has its own higher-priority router.
+#   It preserves the IP whitelist and shared headers/compression,
+#   but intentionally does not use ForwardAuth; otherwise the
+#   outpost would recursively trigger authentication.
+#
+###############################################################################
+
+http:
+  ###########################################################################
+  # Routers
+  ###########################################################################
+
+  routers:
+    #########################################################################
+    # Zigbee2MQTT application
+    #########################################################################
+
+    zigbeemqtt-domapc:
+      entryPoints:
+        - zigbee2mqtt
+
+      rule: "PathPrefix(`/`)"
+
+      service: zigbeemqtt-domapc
+
+      middlewares:
+        - zigbeemqtt-domapc-authentik-chain
+
+      tls:
+        options: default
+
+      priority: 1
+
+    #########################################################################
+    # Authentik embedded outpost endpoint
+    #########################################################################
+
+    zigbeemqtt-domapc-authentik-outpost:
+      entryPoints:
+        - zigbee2mqtt
+
+      rule: "PathPrefix(`/outpost.goauthentik.io/`)"
+
+      service: authentik
+
+      middlewares:
+        - zigbeemqtt-domapc-outpost-chain
+
+      tls:
+        options: default
+
+      priority: 100
+
+  ###########################################################################
+  # Services
+  ###########################################################################
+
+  services:
+    #########################################################################
+    # Zigbee2MQTT backend
+    #########################################################################
+
+    zigbeemqtt-domapc:
+      loadBalancer:
+        passHostHeader: true
+
+        servers:
+          - url: "http://10.110.100.100:8080"
+
+    #########################################################################
+    # The 'authentik' service is defined in authentik.yml.
+    #
+    # It points to http://10.10.10.100:9000.
+    # It is shared by the outpost router.
+    #########################################################################
+
+  ###########################################################################
+  # Middlewares
+  ###########################################################################
+
+  middlewares:
+    #########################################################################
+    # Protected Zigbee2MQTT route
+    #########################################################################
+
+    zigbeemqtt-domapc-authentik-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
+          - authentik-forward-auth
+
+    #########################################################################
+    # Authentik outpost endpoint
+    #########################################################################
+
+    zigbeemqtt-domapc-outpost-chain:
+      chain:
+        middlewares:
+          - ip-whitelist
+          - headers-default
+          - headers-security
+          - compress
