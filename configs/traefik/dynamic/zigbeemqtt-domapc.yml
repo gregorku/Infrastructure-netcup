@@ -56,7 +56,7 @@ http:
 
     zigbeemqtt-domapc:
       entryPoints:
-        - zigbee2mqtt
+        - zigbee2mqtt-domapc
 
       rule: "PathPrefix(`/`)"
 
@@ -76,7 +76,7 @@ http:
 
     zigbeemqtt-domapc-authentik-outpost:
       entryPoints:
-        - zigbee2mqtt
+        - zigbee2mqtt-domapc
 
       rule: "PathPrefix(`/outpost.goauthentik.io/`)"
 

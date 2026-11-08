@@ -54,7 +54,7 @@ http:
 
     esphome-domapc:
       entryPoints:
-        - esphome
+        - esphome-domapc
 
       rule: "PathPrefix(`/`)"
 
@@ -74,7 +74,7 @@ http:
 
     esphome-domapc-authentik-outpost:
       entryPoints:
-        - esphome
+        - esphome-domapc
 
       rule: "PathPrefix(`/outpost.goauthentik.io/`)"
 
