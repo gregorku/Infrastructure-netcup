@@ -102,7 +102,7 @@ http:
         passHostHeader: true
 
         servers:
-          - url: "http://10.110.100.100:6052"
+          - url: "http://10.100.100.100:6052"
 
     #########################################################################
     # The 'authentik' service is defined in authentik.yml.
