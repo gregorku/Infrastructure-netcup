@@ -11,9 +11,7 @@
 ###############################################################################
 
 services:
-
   crowdsec:
-
     image: crowdsecurity/crowdsec:${CROWDSEC_VERSION}
 
     container_name: crowdsec
@@ -21,23 +19,19 @@ services:
     restart: unless-stopped
 
     ports:
-
       - "10.10.10.10:6060:6060"
 
     init: true
 
     depends_on:
-
       postgres-crowdsec:
         condition: service_healthy
 
     networks:
-
       bridge-moje:
         ipv4_address: ${IP_CROWDSEC}
 
     environment:
-
       TZ: ${TZ}
 
       #
@@ -51,13 +45,18 @@ services:
       CROWDSEC_DB_PASSWORD: ${CROWDSEC_DB_PASSWORD}
 
     volumes:
-
       #
       # User configuration
       #
 
       - ../configs/crowdsec/acquis.yaml:/etc/crowdsec/acquis.yaml:ro
       - ../configs/crowdsec/profiles.yaml:/etc/crowdsec/profiles.yaml:ro
+
+      #
+      # Custom CrowdSec scenario
+      #
+
+      - ../configs/crowdsec/scenarios/http-crawl-non_statics.yaml:/etc/crowdsec/hub/scenarios/crowdsecurity/http-crawl-non_statics.yaml:ro
 
       #
       # Overrides db_config to use PostgreSQL instead of
@@ -87,7 +86,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
     healthcheck:
-
       test: ["CMD", "cscli", "version"]
 
       interval: 30s
@@ -95,7 +93,6 @@ services:
       retries: 5
 
     security_opt:
-
       - no-new-privileges:true
 
   ###########################################################################
@@ -107,7 +104,6 @@ services:
   ###########################################################################
 
   postgres-crowdsec:
-
     image: postgres:${POSTGRES_VERSION}
 
     container_name: postgres-crowdsec
@@ -115,12 +111,10 @@ services:
     restart: unless-stopped
 
     networks:
-
       bridge-moje:
         ipv4_address: ${IP_POSTGRES_CROWDSEC}
 
     environment:
-
       POSTGRES_DB: ${CROWDSEC_DB_NAME}
 
       POSTGRES_USER: ${CROWDSEC_DB_USER}
@@ -138,20 +132,20 @@ services:
       TZ: ${TZ}
 
     volumes:
-
       - ${DATA_DIR}/crowdsec/postgres:/var/lib/postgresql/data
 
       - ../configs/crowdsec/init-metabase-readonly.sh:/docker-entrypoint-initdb.d/init-metabase-readonly.sh:ro
 
     healthcheck:
-
-      test: ["CMD-SHELL", "pg_isready -U ${CROWDSEC_DB_USER} -d ${CROWDSEC_DB_NAME}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${CROWDSEC_DB_USER} -d ${CROWDSEC_DB_NAME}",
+        ]
 
       interval: 10s
       timeout: 5s
       retries: 5
 
     security_opt:
-
       - no-new-privileges:true
-
