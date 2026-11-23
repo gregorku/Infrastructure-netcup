@@ -56,7 +56,7 @@ services:
       # Custom CrowdSec scenario
       #
 
-      - ../configs/crowdsec/scenarios/http-crawl-non_statics.yaml:/etc/crowdsec/hub/scenarios/crowdsecurity/http-crawl-non_statics.yaml:ro
+      - ../configs/crowdsec/scenarios/http-crawl-non_statics.yaml:/etc/crowdsec/scenarios/http-crawl-non_statics.yaml:ro
 
       #
       # Overrides db_config to use PostgreSQL instead of
