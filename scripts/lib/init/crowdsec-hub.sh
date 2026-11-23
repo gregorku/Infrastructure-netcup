@@ -8,7 +8,11 @@
 #   scripts/lib/init/crowdsec-hub.sh
 #
 # Description:
-#   Install and update CrowdSec collections.
+#   Install CrowdSec collections that do not pull the
+#   stock http-crawl-non_statics scenario.
+#
+#   This file is not sourced by init.sh. HTTP parsers
+#   and scenarios are installed by deploy_crowdsec.
 #
 ###############################################################################
 
@@ -19,7 +23,6 @@
 CROWDSEC_COLLECTIONS=(
     "crowdsecurity/linux"
     "crowdsecurity/sshd"
-    "crowdsecurity/traefik"
     "crowdsecurity/whitelist-good-actors"
 )
 

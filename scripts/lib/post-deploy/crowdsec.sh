@@ -37,10 +37,16 @@ post_deploy_crowdsec()
 
     info "Installing CrowdSec collections..."
 
+    #
+    # HTTP parsers and scenarios are installed by
+    # deploy_crowdsec. crowdsecurity/traefik must not be
+    # installed here: it enables the stock
+    # http-crawl-non_statics scenario.
+    #
+
     local collections=(
         crowdsecurity/linux
         crowdsecurity/sshd
-        crowdsecurity/traefik
     )
 
     local collection

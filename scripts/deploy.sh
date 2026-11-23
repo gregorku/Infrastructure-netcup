@@ -14,6 +14,7 @@
 #   - Verify deployment environment
 #   - Deploy Dockge
 #   - Deploy Infrastructure-netcup Docker Compose stack
+#   - Install CrowdSec HTTP parsers and scenarios
 #   - Print deployment summary
 #
 ###############################################################################
@@ -67,6 +68,7 @@ source "${SCRIPT_DIR}/lib/deploy/check-env.sh"
 source "${SCRIPT_DIR}/lib/deploy/dockge.sh"
 source "${SCRIPT_DIR}/lib/deploy/wait.sh"
 source "${SCRIPT_DIR}/lib/deploy/compose.sh"
+source "${SCRIPT_DIR}/lib/deploy/crowdsec.sh"
 source "${SCRIPT_DIR}/lib/deploy/summary.sh"
 source "${SCRIPT_DIR}/lib/deploy/restart.sh"
 
@@ -115,6 +117,15 @@ deploy_validate_compose
 # Deploy Infrastructure-netcup stack.
 #
 deploy_compose
+
+#
+# Install CrowdSec HTTP components once the container
+# is up. The image entrypoint installs the same set
+# when the container is created; this pass repairs a
+# container that was not recreated and reloads only
+# when something changed.
+#
+deploy_crowdsec
 
 deploy_restart_services
 

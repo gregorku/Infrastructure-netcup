@@ -44,6 +44,43 @@ services:
       CROWDSEC_DB_USER: ${CROWDSEC_DB_USER}
       CROWDSEC_DB_PASSWORD: ${CROWDSEC_DB_PASSWORD}
 
+      #
+      # Hub items installed by the 1.7.8 image entrypoint
+      # on every container start. /etc/crowdsec is not a
+      # volume, so a Dockge redeploy would otherwise drop
+      # them. Keep this set identical to
+      # scripts/lib/deploy/crowdsec.sh.
+      #
+      # Do not set crowdsecurity/traefik or
+      # crowdsecurity/base-http-scenarios. Both enable the
+      # stock http-crawl-non_statics scenario. The mounted
+      # local scenario replaces it.
+      #
+
+      PARSERS: "crowdsecurity/traefik-logs crowdsecurity/http-logs"
+
+      CONTEXTS: "crowdsecurity/http_base"
+
+      COLLECTIONS: "crowdsecurity/http-cve"
+
+      SCENARIOS: >-
+        crowdsecurity/http-probing
+        crowdsecurity/http-bad-user-agent
+        crowdsecurity/http-path-traversal-probing
+        crowdsecurity/http-sensitive-files
+        crowdsecurity/http-sqli-probing
+        crowdsecurity/http-xss-probing
+        crowdsecurity/http-backdoors-attempts
+        ltsich/http-w00tw00t
+        crowdsecurity/http-generic-bf
+        crowdsecurity/http-open-proxy
+        crowdsecurity/http-admin-interface-probing
+        crowdsecurity/http-wordpress-scan
+        crowdsecurity/http-cve-probing
+        crowdsecurity/http-sap-interface-probing
+        crowdsecurity/http-generic-test
+        crowdsecurity/http-technology-probing
+
     volumes:
       #
       # User configuration
